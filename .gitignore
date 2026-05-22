@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+bun.lock
+
+# Python
+**/venv
+__pycache__
+*.pyc
+
+# Next.js
+web/.next/
+web/out/
+web/dist/
+
+# Environment
+.env
+.env*.local
+!.env.example
+!.env.local.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

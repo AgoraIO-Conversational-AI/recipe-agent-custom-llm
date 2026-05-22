@@ -1,0 +1,30 @@
+{
+  "name": "agora-conversational-ai-recipes",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev:custom-llm": "concurrently -n llm,backend,frontend -c yellow,blue,green \"bun run dev:custom-llm:llm\" \"bun run dev:custom-llm:backend\" \"bun run dev:frontend\"",
+    "dev:custom-llm:llm": "cd custom-llm && bash -c '(venv/bin/python -m pip --version >/dev/null 2>&1 || (rm -rf venv && python3 -m venv venv)) && source venv/bin/activate && python -m pip install -q -r requirements.txt && python src/custom_llm_server.py'",
+    "dev:custom-llm:backend": "cd custom-llm && bash -c 'sleep 2 && (venv/bin/python -m pip --version >/dev/null 2>&1 || (rm -rf venv && python3 -m venv venv)) && source venv/bin/activate && python -m pip install -q -r requirements.txt && python src/server.py'",
+
+    "dev:audio-modalities": "concurrently -n audio,backend,frontend -c yellow,blue,green \"bun run dev:audio-modalities:llm\" \"bun run dev:audio-modalities:backend\" \"bun run dev:frontend\"",
+    "dev:audio-modalities:llm": "cd audio-modalities && bash -c '(venv/bin/python -m pip --version >/dev/null 2>&1 || (rm -rf venv && python3 -m venv venv)) && source venv/bin/activate && python -m pip install -q -r requirements.txt && python src/audio_llm_server.py'",
+    "dev:audio-modalities:backend": "cd audio-modalities && bash -c 'sleep 2 && (venv/bin/python -m pip --version >/dev/null 2>&1 || (rm -rf venv && python3 -m venv venv)) && source venv/bin/activate && python -m pip install -q -r requirements.txt && python src/server.py'",
+
+    "dev:frontend": "cd web && AGENT_BACKEND_URL=http://localhost:8000 bun run dev",
+
+    "setup:custom-llm": "bash -c 'test -f custom-llm/.env.local || cp custom-llm/.env.example custom-llm/.env.local' && cd custom-llm && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt",
+    "setup:audio-modalities": "bash -c 'test -f audio-modalities/.env.local || cp audio-modalities/.env.example audio-modalities/.env.local' && cd audio-modalities && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt",
+    "setup:web": "bun install",
+    "setup": "bun run setup:web && echo '\\n✅ Web dependencies installed. Now setup a recipe:\\n   bun run setup:custom-llm\\n   bun run setup:audio-modalities\\n'",
+
+    "build": "cd web && bun run build",
+    "clean": "rm -rf custom-llm/venv audio-modalities/venv node_modules web/node_modules web/.next"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
