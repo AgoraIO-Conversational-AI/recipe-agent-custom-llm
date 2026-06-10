@@ -1,68 +1,61 @@
-# Architecture
+# Architecture — Custom LLM Recipe
 
-All recipes share the same topology. The only difference is what the recipe server does.
+Three processes. The browser talks only to Next.js `/api/*`, which rewrites to the
+agent backend. The agent backend owns Agora tokens and agent lifecycle. The custom
+LLM endpoint is a separate service that **Agora cloud** calls directly.
 
-## Shared Topology
+## Request flow
 
 ```
-Browser (localhost:3000)
-  ↓ fetch /api/*
-Next.js (rewrites to AGENT_BACKEND_URL)
-  ↓
-Recipe Agent Backend (localhost:8000)
-  ↓ starts agent session
+Browser
+  │  GET /api/get_config            → token + channel/UIDs
+  │  POST /api/startAgent           → start agent session
+  ▼
+Next.js  (rewrites /api/* → AGENT_BACKEND_URL)
+  ▼
+Agent backend (server/, :8000)
+  │  builds session with CustomLLM(base_url=CUSTOM_LLM_URL)
+  ▼
 Agora ConvoAI Cloud
-  ↓                              ↓                    ↓
-Deepgram STT              Recipe Server (8001)    TTS (if applicable)
-(managed)                 (YOUR endpoint, public)  (managed or skipped)
-                                ↑
-                      ngrok tunnel from localhost:8001
+  │  user speech → Deepgram STT (managed)
+  │  POST <CUSTOM_LLM_URL>/chat/completions   (Authorization: Bearer <key>)
+  ▼
+Custom LLM endpoint (llm/, :8001, public via tunnel)
+  │  returns OpenAI SSE
+  ▼
+Agora ConvoAI Cloud → MiniMax TTS (managed) → user hears speech
+                     → RTM transcript / metrics → web UI
 ```
 
-## Per-Recipe Differences
+`POST /api/stopAgent { agentId }` ends the session.
 
-### custom-llm
+## Why two backends
 
-```
-Agora Cloud → POST /chat/completions → your server returns text (SSE)
-                                                    ↓
-                                        Agora Cloud → MiniMax TTS → user hears speech
-```
+`server/` and `llm/` are split because of an **exposure asymmetry**:
 
-Agent config: `OpenAI(base_url="your-url/chat/completions")`
+- `llm/` must be reachable by **Agora cloud over the public internet** (hence the
+  ngrok tunnel). It is the part you replace with your own model, and it has no
+  Agora dependency.
+- `server/` only needs to be reachable by your web tier. It holds the Agora App
+  Certificate and all token logic.
 
-### audio-modalities
+In production the two could be co-deployed, but they are kept separate here to
+make that boundary — and the public-exposure requirement — explicit.
 
-```
-Agora Cloud → POST /audio/chat/completions → your server returns audio (SSE)
-                                                    ↓
-                                        Agora Cloud → RTC → user hears audio directly
-                                        (no TTS step)
-```
-
-Agent config: `OpenAI(base_url="your-url/audio/chat/completions", output_modalities=["audio"])`
-
-## Request Flow (all recipes)
-
-1. **GET /get_config** → Backend generates Token007, returns channel + UIDs
-2. **POST /startAgent** → Backend creates agent session pointing to recipe server
-3. **Conversation** → Agora cloud handles STT, calls your server, handles TTS/audio output
-4. **POST /stopAgent** → Backend stops session
-
-## API Endpoints (Agent Backend, port 8000)
+## API (agent backend, port 8000)
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/get_config` | GET | Token + channel config |
-| `/startAgent` | POST | Start agent |
-| `/stopAgent` | POST | Stop agent |
+| --- | --- | --- |
+| `/get_config` | GET | Token + channel/UID config |
+| `/startAgent` | POST | Start the agent session |
+| `/stopAgent` | POST | Stop the agent by `agent_id` |
+
+The browser calls these as `/api/*`; Next rewrites them to `AGENT_BACKEND_URL`.
 
 ## Auth
 
-- Agent Backend ↔ Agora Cloud: Token007 (`AGORA_APP_ID` + `AGORA_APP_CERTIFICATE`)
-- Agora Cloud → Recipe Server: `Authorization: Bearer <api_key>` header
-- Browser → Agent Backend: none (local dev)
-
-## Key Constraint
-
-Recipe servers must be **publicly reachable**. Agora cloud calls them directly.
+- Browser → agent backend: none (local dev).
+- Agent backend → Agora cloud: Token007, generated from `AGORA_APP_ID` +
+  `AGORA_APP_CERTIFICATE`.
+- Agora cloud → custom LLM endpoint: `Authorization: Bearer <CUSTOM_LLM_API_KEY>`.
+  The mock endpoint does not validate it; a production endpoint should.

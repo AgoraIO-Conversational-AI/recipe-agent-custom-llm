@@ -1,96 +1,122 @@
-# Agora Conversational AI — Python Recipes
+# Agora Conversational AI — Custom LLM Recipe (Python)
 
-A collection of recipes demonstrating advanced features of Agora's Conversational AI Engine. Each recipe is a self-contained server with a shared web frontend for testing.
+The **custom-llm** recipe in the Agora Conversational AI recipes family. Bring your
+own LLM to Agora's voice pipeline: the agent's LLM stage is pointed at your own
+OpenAI-compatible `POST /chat/completions` endpoint instead of a managed model.
+STT (Deepgram) and TTS (MiniMax) stay Agora-managed.
 
-## Recipes
-
-| Recipe | Description | Key Concept |
-|--------|-------------|-------------|
-| [**custom-llm**](./custom-llm/) | Bring your own LLM endpoint | `POST /chat/completions` — OpenAI-compatible streaming |
-| [**audio-modalities**](./audio-modalities/) | Return audio directly from LLM (bypass TTS) | `POST /audio/chat/completions` — PCM audio streaming |
-
-## Quick Start
-
-```bash
-# 1. Install web dependencies
-bun install
-
-# 2. Pick a recipe and set it up
-bun run setup:custom-llm        # or: bun run setup:audio-modalities
-
-# 3. Expose the recipe's LLM server to the internet
-ngrok http 8001
-
-# 4. Configure (edit the .env.local in the recipe folder)
-#    Paste your Agora credentials + ngrok URL
-
-# 5. Run
-bun run dev:custom-llm           # or: bun run dev:audio-modalities
-```
-
-Open [http://localhost:3000](http://localhost:3000) → Start Conversation → speak.
-
-## Architecture (shared across recipes)
-
-```
-Browser (localhost:3000)
-  ↓
-Next.js /api/* rewrites
-  ↓
-Agent Backend (localhost:8000)     ← recipe-specific: configures agent
-  ↓
-Agora ConvoAI Cloud
-  ↓
-Your Recipe Server (localhost:8001) ← recipe-specific: implements the feature
-  ↑
-ngrok tunnel (public URL)
-```
-
-Each recipe has:
-- A **feature server** (port 8001) — the endpoint Agora cloud calls
-- An **agent backend** (port 8000) — configures the agent to use your feature server
-- The shared **web frontend** (port 3000) — for testing in the browser
-
-## Project Structure
-
-```
-agent-recipes-python/
-├── custom-llm/                 # Recipe: Custom LLM
-│   ├── src/
-│   │   ├── custom_llm_server.py   # Your LLM endpoint
-│   │   ├── agent.py               # Agent config
-│   │   └── server.py              # Agent lifecycle API
-│   ├── .env.example
-│   └── requirements.txt
-├── audio-modalities/           # Recipe: Audio Output Modalities
-│   ├── src/
-│   │   ├── audio_llm_server.py    # Your audio endpoint
-│   │   ├── agent.py               # Agent config (output_modalities=["audio"])
-│   │   └── server.py              # Agent lifecycle API
-│   ├── .env.example
-│   └── requirements.txt
-├── web/                        # Shared frontend (all recipes use this)
-├── package.json                # Run scripts for each recipe
-└── README.md
-```
+This repo ships a **zero-key mock** LLM endpoint so you can run the full
+STT → custom LLM → TTS pipeline immediately, then replace the mock with your own
+model.
 
 ## Prerequisites
 
-- [Python 3.10+](https://www.python.org/)
+- [Python 3.8+](https://www.python.org/)
 - [Bun](https://bun.sh/)
 - [ngrok](https://ngrok.com/) (or any tunnel to expose localhost)
-- Agora App ID + App Certificate
+- Agora App ID + App Certificate (the [Agora CLI](https://github.com/AgoraIO/cli) makes this easy)
+
+## Run it
+
+```bash
+# 1. Install + create both Python venvs
+bun run setup
+
+# 2. Add Agora credentials (CLI), or edit server/.env.local by hand
+agora login
+agora project env write server/.env.local
+
+# 3. Expose the custom LLM endpoint publicly (Agora cloud calls it directly)
+ngrok http 8001
+
+# 4. Add the tunnel URL to server/.env.local
+#    CUSTOM_LLM_URL=https://<your-tunnel>.ngrok-free.app/chat/completions
+
+# 5. Run all three services
+bun run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) → **Start Conversation** → speak.
+
+## Architecture
+
+```
+Browser (localhost:3000)
+  │  fetch /api/*
+  ▼
+Next.js  ──rewrite──▶  Agent backend  (server/, localhost:8000)
+                          │  starts agent session (CustomLLM vendor)
+                          ▼
+                       Agora ConvoAI Cloud
+                          │  POST <CUSTOM_LLM_URL>   (Authorization: Bearer)
+                          ▼
+                       Custom LLM endpoint  (llm/, localhost:8001)
+                          ▲  public via ngrok tunnel
+```
+
+The browser only ever calls Next `/api/*`, which rewrites to the agent backend.
+The agent backend owns Agora tokens and agent lifecycle. The **custom LLM
+endpoint** is separate because Agora cloud — not the browser — calls it, so it
+must be publicly reachable. See [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Project structure
+
+```
+agent-recipes-python/
+├── server/   # Agent backend (:8000) — tokens + agent lifecycle, CustomLLM vendor
+│   ├── src/{server.py, agent.py}
+│   └── scripts/run_fake_server.py
+├── llm/      # Custom LLM endpoint (:8001) — OpenAI-compatible mock, no agora deps
+│   └── src/custom_llm_server.py
+├── web/      # Shared Next.js frontend (:3000)
+└── package.json
+```
+
+## Environment variables
+
+Backend env file: [`server/.env.example`](server/.env.example).
+
+| Variable | Required | Default | Notes |
+| --- | :---: | :---: | --- |
+| `AGORA_APP_ID` | ✅ | — | Agora Console → Project → App ID |
+| `AGORA_APP_CERTIFICATE` | ✅ | — | Agora Console → Project → App Certificate (server only) |
+| `CUSTOM_LLM_URL` | ✅ | — | **Public** chat-completions URL of your `llm/` endpoint. Agora cloud calls it; cannot be `localhost`. |
+| `CUSTOM_LLM_API_KEY` | ✅ | `any-key-here` | Forwarded by Agora cloud as `Authorization: Bearer`. Required by the `CustomLLM` vendor. |
+| `CUSTOM_LLM_MODEL` |  | `mock-model` | Model name passed to your endpoint |
+| `AGENT_GREETING` |  | built-in | Optional opening line override |
+| `PORT` |  | `8000` | Agent backend port |
+| `CUSTOM_LLM_PORT` (llm) |  | `8001` | Port for the custom LLM endpoint |
+| `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
 
-| Command | What it does |
-|---------|-------------|
-| `bun run setup:custom-llm` | Create venv + install deps for custom-llm recipe |
-| `bun run setup:audio-modalities` | Create venv + install deps for audio-modalities recipe |
-| `bun run dev:custom-llm` | Run custom-llm recipe (3 services) |
-| `bun run dev:audio-modalities` | Run audio-modalities recipe (3 services) |
-| `bun run build` | Production build of web frontend |
-| `bun run clean` | Remove all venvs and build artifacts |
+```bash
+bun run setup            # install web deps + create server/ and llm/ venvs
+bun run dev              # run llm (:8001) + backend (:8000) + web (:3000)
+
+bun run doctor           # prerequisite check (no creds needed)
+bun run doctor:local     # + .env.local + credentials + CUSTOM_LLM_URL checks
+
+bun run verify           # web-only gate (no Agora creds needed)
+bun run verify:local     # full local gate: backend compile + smoke tests + web build
+bun run clean            # remove venvs and build artifacts
+```
+
+## Replacing the mock
+
+Edit `get_mock_response()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
+The endpoint must keep speaking the OpenAI streaming `/chat/completions` contract
+(see [`llm/README.md`](llm/README.md)). A production endpoint should also validate
+the `Authorization: Bearer` header.
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Agent starts but never speaks | `CUSTOM_LLM_URL` is not public or omits `/chat/completions`. Use your ngrok URL. |
+| `doctor:local` warns about localhost | Replace the local URL with your public tunnel URL. |
+| Local calls fail / hang under a global proxy (Clash, etc.) | Your proxy is routing loopback through itself. Configure it to send `127.0.0.1`, `localhost`, and RFC-1918 ranges DIRECT (don't disable the proxy entirely). |
+| `Missing llm/venv` during verify | Run `bun run setup` (creates both venvs). |
 
 ## License
 

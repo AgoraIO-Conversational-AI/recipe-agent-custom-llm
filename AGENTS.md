@@ -1,66 +1,85 @@
 # Agent Development Guide
 
-For coding agents working in `agent-recipes-python`.
+For coding agents working in `agent-recipes-python`. This repository is the
+**custom-llm** recipe (`Recipe Role: custom-llm`) in the Agora Conversational AI
+recipes family, derived from the base `agent-quickstart-python` template.
 
-## Structure
+## System shape
 
-```
-agent-recipes-python/
-├── custom-llm/          # Recipe: Custom LLM text responses
-├── audio-modalities/    # Recipe: Audio output (bypass TTS)
-├── web/                 # Shared frontend (all recipes)
-├── package.json         # Run scripts per recipe
-├── README.md            # Index
-└── ARCHITECTURE.md      # Shared topology
-```
+- **`server/`** — Python FastAPI agent backend (:8000). Owns Agora token
+  generation and agent session lifecycle. Uses the `CustomLLM` vendor to point the
+  agent's LLM stage at the custom LLM endpoint. SDK: `agora-agents>=2.0.0`
+  (`import agora_agent`).
+- **`llm/`** — Python FastAPI custom LLM endpoint (:8001). OpenAI-compatible
+  `POST /chat/completions` mock that Agora cloud calls. No `agora-agents`
+  dependency. This is the component a developer replaces.
+- **`web/`** — Next.js 16 / React 19 / TypeScript frontend (:3000), resynced from
+  the base quickstart with custom-LLM branding only.
+- Auth: Token007 from `AGORA_APP_ID` + `AGORA_APP_CERTIFICATE`.
 
-Each recipe is independent: own venv, own .env.local, own server files.
-The web frontend is shared — it doesn't know which recipe is running.
+## Routing / ownership
 
-## Key Files Per Recipe
+- UI and RTC/RTM lifecycle live in `web/`.
+- Browser-facing `/api/*` paths are Next rewrites (`web/next.config.ts`) to the
+  agent backend; do not add `web/app/api/**/route.ts` for agent/token logic.
+- Token generation and agent lifecycle live in `server/src/`.
+- The OpenAI `/chat/completions` contract lives in `llm/src/`.
 
-| File | Role |
-|------|------|
-| `src/*_server.py` | The feature endpoint (what Agora cloud calls) |
-| `src/agent.py` | Agent configuration (vendor, modalities, etc.) |
-| `src/server.py` | FastAPI routes: get_config, startAgent, stopAgent |
-| `.env.example` | Template for credentials + public URL |
-| `requirements.txt` | Python dependencies |
-| `README.md` | Recipe-specific docs |
+## Supported modes
+
+- **Local:** `bun run dev` starts `llm` (:8001), `server` (:8000), and `web`
+  (:3000). The web app calls `/api/*`; Next rewrites to
+  `AGENT_BACKEND_URL=http://localhost:8000`. The custom LLM endpoint must be
+  exposed publicly (ngrok) so Agora cloud can reach it.
+- **Deploy:** deploy `web` (Next) + `server` (reachable FastAPI) + `llm` (publicly
+  reachable FastAPI). Set `AGENT_BACKEND_URL` in the web deployment.
+
+## Patterns
+
+- Keep the web client calling `/api/*`; hide backend placement behind Next rewrites.
+- Keep token generation and the App Certificate in `server/`.
+- Keep the `llm/` endpoint free of `agora-agents` — it is provider-agnostic.
+- `CUSTOM_LLM_URL` is required and must be public; there is no localhost default.
+- Both `CUSTOM_LLM_URL` and `CUSTOM_LLM_API_KEY` are required by the `CustomLLM`
+  vendor (the SDK rejects one without the other).
+
+## Anti-patterns
+
+- Do not reintroduce Next Route Handlers for agent/token logic.
+- Do not add `agora-agents` to `llm/`.
+- Do not default `CUSTOM_LLM_URL` to localhost.
+- Do not put `PORT` in `server/.env.example` (it would clobber the random port
+  that `verify:local:fastapi` injects via `load_dotenv(override=True)`).
+- Do not link to `docs/ai/` — that progressive-disclosure tree is not present yet.
 
 ## Commands
 
 ```bash
-bun run setup:custom-llm          # setup recipe venv
-bun run setup:audio-modalities
-bun run dev:custom-llm             # run recipe (3 services)
-bun run dev:audio-modalities
-bun run build                      # build web
-bun run clean                      # nuke everything
+bun run setup
+bun run dev
+bun run doctor
+bun run doctor:local
+bun run verify         # web-only, no creds
+bun run verify:local   # full local gate
 ```
 
-## Patterns
+Narrower checks: `bun run verify:backend`, `bun run verify:local:fastapi`,
+`bun run verify:local:llm`, `bun run verify:web:proxy`.
 
-- Each recipe is self-contained — don't create cross-recipe dependencies.
-- Recipe servers run on port 8001; agent backends on port 8000.
-- The web frontend connects to port 8000 via Next.js rewrites.
-- Mock implementations should work with zero external API keys.
-- Keep server.py identical across recipes (copy-paste is fine).
-- The interesting code lives in the feature server and agent.py.
+## Done criteria
 
-## Adding a New Recipe
+1. Run the narrowest relevant verification command.
+2. Web-affecting changes: `bun run verify:web` passes.
+3. Backend-affecting changes: `bun run verify:local` (or the narrower
+   `verify:local:fastapi` / `verify:local:llm` / `verify:backend`) passes.
+4. If you change required env vars or setup steps, update the root README, the
+   relevant module README, and `server/.env.example` / `llm/.env.example` together.
 
-1. Create `new-recipe/` with `src/`, `.env.example`, `requirements.txt`
-2. Implement the feature server (`src/feature_server.py`)
-3. Create `src/agent.py` with the relevant vendor config
-4. Copy `src/server.py` from an existing recipe (adjust channel prefix)
-5. Add `setup:new-recipe` and `dev:new-recipe` scripts to root `package.json`
-6. Add a row to the root README table
-7. Write a recipe-specific `README.md`
+## Git conventions
 
-## Anti-Patterns
-
-- Don't merge feature servers into the agent backend
-- Don't add shared Python code across recipes — keep them independent
-- Don't require external API keys for mock demos
-- Don't use localhost in the LLM URL env var for real testing
+- Conventional Commits: `type: description` or `type(scope): description`
+  (`feat`, `fix`, `chore`, `test`, `docs`). Lowercase after the prefix, present
+  tense.
+- No AI tool names in commit messages or PR descriptions. No `Co-Authored-By`
+  trailers. No `--no-verify`. No git config changes.
+- Branch names: `type/short-description` (e.g. `feat/custom-llm-tools`).
