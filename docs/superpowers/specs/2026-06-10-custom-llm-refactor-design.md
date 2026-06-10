@@ -85,7 +85,7 @@ agent-recipes-python/
   - **`CUSTOM_LLM_URL` is required — no `localhost` default.** `agent.py` raises `ValueError` if it is missing/empty (same handling as `AGORA_APP_ID`/`AGORA_APP_CERTIFICATE`; `server.py` catches this at import → `agent = None` → routes return a clear 500). A `localhost` default is removed because **Agora cloud**, not the backend, calls this URL and cannot reach `localhost` — a default would produce an agent that starts but whose LLM calls silently fail cloud-side.
 - **`server.py`** — aligned to reference `server/src/server.py`, including the token call signature fix: use `generate_convo_ai_token(app_id=..., app_certificate=..., channel_name=..., uid=user_uid, token_expire=3600)` (reference form) instead of the current `account=str(user_uid)`. Channel prefix `custom-llm-`. Title "Agora Custom LLM Recipe Service".
 - **`scripts/run_fake_server.py`** — identical `FakeAgent` pattern from the reference (swaps `server.agent` for a fake so route wiring is testable without a live agent).
-- **`.env.example`**:
+- **`.env.example`** (note: **no `PORT` line** — `server.py` defaults to 8000 in code. `PORT` is intentionally omitted so a `setup:env` copy into `.env.local` cannot, via `load_dotenv(override=True)`, clobber the random port that `verify:local:fastapi` injects):
   ```
   AGORA_APP_ID=your_agora_app_id
   AGORA_APP_CERTIFICATE=your_agora_app_certificate
@@ -93,7 +93,6 @@ agent-recipes-python/
   CUSTOM_LLM_URL=https://your-tunnel.ngrok-free.app/chat/completions
   CUSTOM_LLM_API_KEY=any-key-here
   CUSTOM_LLM_MODEL=mock-model
-  PORT=8000
   ```
 - **`requirements.txt`** — same as reference: `fastapi`, `uvicorn`, `requests`, `python-dotenv`, `agora-agents>=2.0.0`, `socksio`. Python floor stated as **3.8+** in docs (matching the reference), down from the old recipe's 3.10+ claim; the code uses nothing past 3.8.
 - **`README.md`** — reference-style module README adapted: notes the custom LLM vendor path, the required public `CUSTOM_LLM_URL`, and that `llm/` must be running and tunneled.
@@ -107,6 +106,7 @@ agent-recipes-python/
   ```
   CUSTOM_LLM_PORT=8001
   ```
+- **Dotenv loaded with `override=False`** (deviation from the agent backend's `override=True`). The mock is a standalone server whose port the verify harness injects via `CUSTOM_LLM_PORT` in the process environment; `override=False` lets that injected value win over a checked-in `.env.local`, so `verify:local:llm` can bind a random free port reliably. In normal `dev`, no `CUSTOM_LLM_PORT` is exported, so `.env.local`/`.env.example`'s `8001` is still used.
 - **`README.md`** — recipe-specific: the OpenAI SSE contract, how to expose it via ngrok, how to replace the mock with a real model, and an explicit note that a **production endpoint should authenticate the `Authorization: Bearer` header** (the mock intentionally does not).
 
 ### `web/` — full resync to reference
