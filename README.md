@@ -24,13 +24,15 @@ bun run setup
 
 # 2. Add Agora credentials (CLI), or edit server/.env.local by hand
 agora login
-agora project env write server/.env.local
+agora project use <your-project>          # select which project to use (you may have several)
+agora project env write server/.env.local # writes App ID/Certificate; keeps your CUSTOM_LLM_* lines
 
 # 3. Expose the custom LLM endpoint publicly (Agora cloud calls it directly)
 ngrok http 8001
 
-# 4. Add the tunnel URL to server/.env.local
-#    CUSTOM_LLM_URL=https://<your-tunnel>.ngrok-free.app/chat/completions
+# 4. Add the tunnel URL to server/.env.local (use whatever domain ngrok prints —
+#    today that is usually *.ngrok-free.dev)
+#    CUSTOM_LLM_URL=https://<your-tunnel>.ngrok-free.dev/chat/completions
 
 # 5. Run all three services
 bun run dev
@@ -85,7 +87,7 @@ Backend env file: [`server/.env.example`](server/.env.example).
 | `CUSTOM_LLM_MODEL` |  | `mock-model` | Model name passed to your endpoint |
 | `AGENT_GREETING` |  | built-in | Optional opening line override |
 | `PORT` |  | `8000` | Agent backend port |
-| `CUSTOM_LLM_PORT` (llm) |  | `8001` | Port for the custom LLM endpoint |
+| `CUSTOM_LLM_PORT` |  | `8001` | Port for the custom LLM endpoint — lives in **`llm/.env.local`**, not `server/`'s |
 | `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
