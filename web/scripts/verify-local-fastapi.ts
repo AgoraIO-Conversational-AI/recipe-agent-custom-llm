@@ -101,7 +101,7 @@ async function main() {
   const venvPython = path.join(serverRoot, 'venv', 'bin', 'python')
 
   if (!existsSync(venvPython)) {
-    throw new Error('Missing server/venv/bin/python. Run bun run setup:backend before verify:local.')
+    throw new Error('Missing server/venv/bin/python. Run bun run setup:server before verify:local.')
   }
 
   const dependencyCheck = bunRuntime.Bun.spawnSync({
@@ -113,7 +113,7 @@ async function main() {
   if (dependencyCheck.exitCode !== 0) {
     const stderr = dependencyCheck.stderr.toString().trim()
     throw new Error(
-      `The backend virtualenv is missing required packages. Run bun run setup:backend before verify:local.${stderr ? ` Python said: ${stderr}` : ''}`,
+      `The backend virtualenv is missing required packages. Run bun run setup:server before verify:local.${stderr ? ` Python said: ${stderr}` : ''}`,
     )
   }
 
