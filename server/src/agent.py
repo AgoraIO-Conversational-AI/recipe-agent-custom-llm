@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 from agora_agent import Area, AsyncAgora
 from agora_agent.agentkit import Agent as AgoraAgent
-from agora_agent.agentkit.vendors import DeepgramSTT, MiniMaxTTS, OpenAI
+from agora_agent.agentkit.vendors import CustomLLM, DeepgramSTT, MiniMaxTTS
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -48,19 +48,29 @@ class Agent:
             "Hi there! I'm your AI assistant powered by a custom LLM. How can I help?",
         )
 
-        # Custom LLM configuration
-        # CUSTOM_LLM_URL must be a publicly accessible URL for Agora cloud to reach.
-        # For local dev: expose port 8001 via ngrok and use the ngrok URL here.
-        self.custom_llm_url = os.getenv("CUSTOM_LLM_URL", "http://localhost:8001/chat/completions")
+        # Custom LLM configuration.
+        # CUSTOM_LLM_URL is the FULL OpenAI-compatible chat-completions URL and must be
+        # PUBLICLY reachable: Agora cloud (not this backend) calls it. For local dev,
+        # expose the llm/ server on port 8001 via ngrok and paste that URL here.
+        # There is intentionally no localhost default: a localhost URL would let the
+        # agent "start" while its LLM calls silently fail cloud-side.
+        self.custom_llm_url = os.getenv("CUSTOM_LLM_URL")
         self.custom_llm_api_key = os.getenv("CUSTOM_LLM_API_KEY", "any-key-here")
         self.custom_llm_model = os.getenv("CUSTOM_LLM_MODEL", "mock-model")
 
         if not self.app_id or not self.app_certificate:
             raise ValueError("AGORA_APP_ID and AGORA_APP_CERTIFICATE are required")
 
+        if not self.custom_llm_url:
+            raise ValueError(
+                "CUSTOM_LLM_URL is required (the public chat-completions URL of your "
+                "custom LLM endpoint, e.g. https://<tunnel>/chat/completions)"
+            )
+
         if not self.custom_llm_api_key:
-            logger.warning(
-                "CUSTOM_LLM_API_KEY is not set. Using default placeholder."
+            # CustomLLM rejects a missing api_key, and base_url is only valid with a key.
+            raise ValueError(
+                "CUSTOM_LLM_API_KEY is required when using a custom LLM endpoint"
             )
 
         self.client = AsyncAgora(
@@ -90,17 +100,19 @@ class Agent:
         name = f"agent_{channel_name}_{agent_uid}_{int(time.time())}"
 
         # ============================================================
-        # KEY DIFFERENCE: Use OpenAI vendor with custom base_url
+        # KEY DIFFERENCE: Use the SDK's CustomLLM vendor
         # ============================================================
-        # Instead of using the default OpenAI endpoint, we point the OpenAI
-        # vendor to our own Custom LLM proxy server. The proxy implements
-        # the OpenAI Chat Completions API and can:
+        # The base quickstart uses a managed `OpenAI(model="gpt-4o-mini")`.
+        # This recipe instead points the LLM stage at our own OpenAI-compatible
+        # endpoint (the llm/ server) via the purpose-built `CustomLLM` vendor.
+        # CustomLLM stamps `vendor: "custom"` in the wire config and requires
+        # both base_url and api_key. Your endpoint can then:
         # - Add custom preprocessing (RAG, context injection)
         # - Route to different models dynamically
         # - Add logging and analytics
         # - Implement custom tool calling
         # ============================================================
-        llm = OpenAI(
+        llm = CustomLLM(
             base_url=self.custom_llm_url,
             api_key=self.custom_llm_api_key,
             model=self.custom_llm_model,
