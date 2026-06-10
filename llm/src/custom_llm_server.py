@@ -34,10 +34,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-# Load environment variables
+# Load environment variables.
+# override=False so an explicitly-exported value (e.g. CUSTOM_LLM_PORT injected by
+# the verify:local:llm harness, or a process manager) takes precedence over a
+# checked-in .env.local. In normal `dev` no port is exported, so .env.local wins.
 _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(_base_dir, ".env.local"), override=True)
-load_dotenv(os.path.join(_base_dir, ".env"), override=True)
+load_dotenv(os.path.join(_base_dir, ".env.local"), override=False)
+load_dotenv(os.path.join(_base_dir, ".env"), override=False)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
