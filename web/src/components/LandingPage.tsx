@@ -2,17 +2,21 @@
 
 import type { RTMClient } from "agora-rtm";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { QuickstartPreCallCard } from "@/components/QuickstartPreCallCard";
+import { ShareButton } from "@/components/share-button";
 import { getConfig, startAgent, stopAgent } from "@/services/api";
 import type { AgoraRenewalTokens, AgoraTokenData } from "@/types/conversation";
 
 const ConversationComponent = dynamic(
 	() => import("@/components/ConversationComponent"),
-	{ ssr: false },
+	{
+		ssr: false,
+	},
 );
 
 function waitForRtmConnected(rtmClient: RTMClient, timeoutMs = 600): Promise<void> {
@@ -150,6 +154,8 @@ export default function LandingPage() {
 					throw new Error("Missing channel for token renewal");
 				}
 
+				// Python get_config issues RTM-capable tokens for the configured account,
+				// so renew RTM with the same UID used by the RTM client login.
 				const [rtcConfig, rtmConfig] = await Promise.all([
 					getConfig({ channel, uid }),
 					getConfig({ channel, uid: agoraData.uid }),
@@ -233,11 +239,33 @@ export default function LandingPage() {
 				</div>
 			</div>
 
-			<footer className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-end gap-4 px-4 py-4 md:px-6 md:py-6">
+			<footer
+				className={`fixed inset-x-0 bottom-0 z-40 flex items-center gap-4 px-4 py-4 md:px-6 md:py-6 ${
+					showConversation ? "justify-end" : "justify-between"
+				}`}
+			>
+				{!showConversation ? <ShareButton menuPlacement="top" /> : null}
 				<div className="flex items-center justify-end gap-2 text-muted-foreground">
 					<span className="text-xs font-medium uppercase tracking-wide">
-						Custom LLM Recipe
+						Powered by
 					</span>
+					<a
+						href="https://agora.io/en/"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="transition-colors hover:text-primary"
+						aria-label="Visit Agora's website"
+					>
+						<Image
+							src="/agora-logo-rgb-blue.svg"
+							alt="Agora"
+							width={86}
+							height={24}
+							priority
+							className="h-6 w-auto translate-y-1 transition-opacity hover:opacity-80"
+						/>
+						<span className="sr-only">Agora</span>
+					</a>
 				</div>
 			</footer>
 		</div>

@@ -1,12 +1,15 @@
 {
-  "name": "agora-custom-llm-recipe-web",
+  "name": "agora-conversational-ai-demo",
   "version": "1.0.0",
   "scripts": {
+    "doctor": "bun run scripts/doctor.ts",
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "verify:api": "bun run scripts/verify-api-contracts.ts",
+    "verify": "bun run doctor && bun run verify:api && bun run build"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",
