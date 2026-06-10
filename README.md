@@ -116,6 +116,7 @@ the `Authorization: Bearer` header.
 | Agent starts but never speaks | `CUSTOM_LLM_URL` is not public or omits `/chat/completions`. Use your ngrok URL. |
 | `doctor:local` warns about localhost | Replace the local URL with your public tunnel URL. |
 | Proxy errors on stopAgent | `unset http_proxy https_proxy` before `bun run dev`. |
+| `verify` smoke tests fail with `health returned 502` / timeouts | A global HTTP/SOCKS proxy (`http_proxy`/`all_proxy`) is intercepting loopback. Export `NO_PROXY=127.0.0.1,localhost,::1` (and lowercase `no_proxy`) so localhost bypasses the proxy while external traffic still works. |
 | `Missing llm/venv` during verify | Run `bun run setup` (creates both venvs). |
 
 ## License
