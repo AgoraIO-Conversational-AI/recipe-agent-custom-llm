@@ -2,7 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light theme (default). Dark tokens apply when the OS prefers dark mode. */
+/* Base (light) tokens. The dark tokens below are applied unconditionally (see
+   the `@media all` block) because the UI components are designed for a dark
+   surface; deferring to the OS color scheme leaves a light page behind dark
+   cards. */
 :root {
 	color-scheme: light;
 
@@ -60,7 +63,9 @@
 		BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Force the dark theme regardless of OS color scheme. `@media all` always
+   matches, so these :root values always override the light defaults above. */
+@media all {
 	:root {
 		color-scheme: dark;
 

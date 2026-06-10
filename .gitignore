@@ -17,6 +17,9 @@ web/dist/
 !.env.example
 !.env.local.example
 
+# Agora CLI local project binding
+.agora/
+
 # IDE
 .vscode
 .idea
