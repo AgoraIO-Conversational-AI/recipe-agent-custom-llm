@@ -118,7 +118,7 @@ async def get_config(
             app_id=app_id,
             app_certificate=app_certificate,
             channel_name=channel_name,
-            account=str(user_uid),
+            uid=user_uid,
             token_expire=3600,
         )
 
