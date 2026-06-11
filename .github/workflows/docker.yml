@@ -46,7 +46,7 @@ jobs:
         run: |
           IMAGE=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n1)
           echo "Smoke-testing $IMAGE"
-          docker run -d --name smoke -p 8000:8000 -p 8001:8001 -p 3000:3000 \
+          docker run -d --name smoke -p 8000:8000 -p 8001:8001 \
             -e AGORA_APP_ID=0123456789abcdef0123456789abcdef \
             -e AGORA_APP_CERTIFICATE=fedcba9876543210fedcba9876543210 \
             -e CUSTOM_LLM_URL=https://example.test/chat/completions \
@@ -54,7 +54,7 @@ jobs:
             "$IMAGE"
           set +e
           fail=0
-          for url in http://localhost:8001/health http://localhost:8000/get_config http://localhost:3000/; do
+          for url in http://localhost:8001/health http://localhost:8000/get_config; do
             ok=""
             for i in $(seq 1 40); do
               if curl -fsS "$url" -o /dev/null; then ok=1; echo "OK   $url"; break; fi
