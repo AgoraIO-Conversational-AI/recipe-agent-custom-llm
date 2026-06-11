@@ -11,7 +11,7 @@ model.
 
 ## Prerequisites
 
-- [Python 3.8+](https://www.python.org/)
+- [Python 3.10+](https://www.python.org/)
 - [Bun](https://bun.sh/)
 - [ngrok](https://ngrok.com/) (or any tunnel to expose localhost)
 - Agora App ID + App Certificate (the [Agora CLI](https://github.com/AgoraIO/cli) makes this easy)
@@ -103,6 +103,8 @@ bun run verify           # web-only gate (no Agora creds needed)
 bun run verify:local     # full local gate: backend compile + smoke tests + web build
 bun run clean            # remove venvs and build artifacts
 ```
+
+Tests run standalone (no Agora cloud needed): `pytest` in `server/` and `llm/`, `bun test` in `web/`. CI runs them on Linux/macOS/Windows × Python 3.10 & 3.13.
 
 ## Replacing the mock
 

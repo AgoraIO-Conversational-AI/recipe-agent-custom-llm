@@ -1,0 +1,45 @@
+"""Contract tests for the mock custom LLM endpoint (no Agora deps, no network)."""
+import pytest
+from fastapi.testclient import TestClient
+
+import custom_llm_server
+
+
+@pytest.fixture
+def client():
+    return TestClient(custom_llm_server.app)
+
+
+def test_health(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_streaming_sse_contract(client):
+    response = client.post(
+        "/chat/completions",
+        json={
+            "model": "test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": True,
+        },
+    )
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    body = response.text
+    assert '"role": "assistant"' in body or '"role":"assistant"' in body
+    assert '"finish_reason": "stop"' in body or '"finish_reason":"stop"' in body
+    assert body.rstrip().endswith("data: [DONE]")
+
+
+def test_non_streaming_rejected(client):
+    response = client.post(
+        "/chat/completions",
+        json={
+            "model": "test-model",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": False,
+        },
+    )
+    assert response.status_code == 400
