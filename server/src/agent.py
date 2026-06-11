@@ -55,7 +55,7 @@ class Agent:
         # There is intentionally no localhost default: a localhost URL would let the
         # agent "start" while its LLM calls silently fail cloud-side.
         self.custom_llm_url = os.getenv("CUSTOM_LLM_URL")
-        self.custom_llm_api_key = os.getenv("CUSTOM_LLM_API_KEY", "any-key-here")
+        self.custom_llm_api_key = os.getenv("CUSTOM_LLM_API_KEY")
         self.custom_llm_model = os.getenv("CUSTOM_LLM_MODEL", "mock-model")
 
         if not self.app_id or not self.app_certificate:
