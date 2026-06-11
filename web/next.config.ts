@@ -6,8 +6,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Skip the TypeScript type-check ONLY inside the Docker image build
   // (the Dockerfile sets DOCKER_BUILD=1). It keeps peak build memory low on
-  // constrained hosts; type-checking still runs in the normal `bun run build`
-  // and the test CI, so this does not weaken local/PR type safety.
+  // constrained hosts. The normal `bun run build` (e.g. `verify:web:build`)
+  // still type-checks — the image build is the only place types are skipped.
   typescript: {
     ignoreBuildErrors: process.env.DOCKER_BUILD === '1',
   },
