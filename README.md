@@ -122,6 +122,21 @@ the `Authorization: Bearer` header.
 | Local calls fail / hang under a global proxy (Clash, etc.) | Your proxy is routing loopback through itself. Configure it to send `127.0.0.1`, `localhost`, and RFC-1918 ranges DIRECT (don't disable the proxy entirely). |
 | `Missing llm/venv` during verify | Run `bun run setup` (creates both venvs). |
 
+## Docker
+
+A single combined image runs all three services (server :8000, llm :8001, web :3000). CI builds and smoke-tests it on every push/PR and publishes it to GHCR on `v*` tags.
+
+```bash
+docker run --rm \
+  -p 3000:3000 -p 8000:8000 -p 8001:8001 \
+  -e AGORA_APP_ID=... -e AGORA_APP_CERTIFICATE=... \
+  -e CUSTOM_LLM_URL=https://<public-tunnel>/chat/completions \
+  -e CUSTOM_LLM_API_KEY=any-key-here \
+  ghcr.io/agoraio-conversational-ai/recipe-agent-custom-llm:latest
+```
+
+> The combined image bundles the processes for convenience but does **not** remove the public-tunnel requirement: Agora cloud calls `CUSTOM_LLM_URL` from outside, so it must point at a publicly reachable address for the `:8001` port (ngrok locally, or a public ingress when deployed). It is a demo convenience, not the production-deploy shape (where you'd split the services).
+
 ## License
 
 MIT
