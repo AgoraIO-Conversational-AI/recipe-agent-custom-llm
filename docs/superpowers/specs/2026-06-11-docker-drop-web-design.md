@@ -23,6 +23,16 @@ web frontend is not the recipe's point — the **custom LLM endpoint** (`llm/`) 
 web keeps the recipe's defining components in the image while shedding the standalone
 machinery and the Node runtime layer.
 
+## Locked decisions (grill 2026-06-11)
+
+1. **Keep server + llm, drop web** — the two Python backends stay; only the frontend leaves.
+2. **amd64-only** (unchanged from the original) — `load: true` smoke requires single arch.
+3. **Non-root `USER app`** — added while reworking the Dockerfile; the original ran as root.
+4. **Keep GHCR tag-push** — unchanged; publish on `v*` tags. The README pull reference is
+   removed, so the published image becomes CI-only / undocumented.
+5. **Revert `web/next.config.ts`** + **delete README `## Docker`** — the only non-Docker,
+   non-CI files touched; `docs/ai/` untouched, so no L0 `Last Reviewed` bump.
+
 ## Scope of change (what stays vs goes)
 
 **Stays in the image:** `server/` (FastAPI agent backend, :8000) and `llm/` (OpenAI-compatible
@@ -38,24 +48,34 @@ Target end state:
 ```dockerfile
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim-bookworm AS runtime
+
+# Run as a non-root user (created before any COPY so --chown can reference it).
+RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 
-# Python dependencies for both backend services.
+# Python dependencies for both backend services (installed as root into the
+# system site-packages, world-readable for the app user at runtime).
 COPY server/requirements.txt /tmp/server-req.txt
 COPY llm/requirements.txt /tmp/llm-req.txt
 RUN pip install --no-cache-dir -r /tmp/server-req.txt -r /tmp/llm-req.txt
 
-# Python source.
-COPY server/src /app/server/src
-COPY llm/src /app/llm/src
+# Python source, owned by the runtime user.
+COPY --chown=app:app server/src /app/server/src
+COPY --chown=app:app llm/src /app/llm/src
 
 # Launcher (server + llm).
-COPY docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=app:app docker/entrypoint.sh /app/docker/entrypoint.sh
 RUN chmod +x /app/docker/entrypoint.sh
+
+# Drop privileges for the running processes.
+USER app
 
 EXPOSE 8000 8001
 CMD ["/app/docker/entrypoint.sh"]
 ```
+
+**Non-root:** `pip install` runs as root (writes `/usr/local`, world-readable), then
+`USER app` drops privileges before `CMD`. Ports 8000/8001 (> 1024) bind without privilege.
 
 Removed vs current: the entire `oven/bun:1` web-build stage; the `node:22-bookworm-slim`
 base + `apt-get python3 python3-venv` + `/opt/venv` (replaced by a Python base where `pip`
