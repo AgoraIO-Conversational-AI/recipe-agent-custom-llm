@@ -9,6 +9,9 @@ COPY package.json bun.lock ./
 COPY web/package.json web/package.json
 RUN bun install --frozen-lockfile
 # Build the web app -> web/.next/standalone (server.js nested under web/).
+# DOCKER_BUILD=1 makes next.config skip the TypeScript type-check so the build
+# fits in modest memory (type checks run in the normal build + test CI instead).
+ENV DOCKER_BUILD=1
 COPY web/ web/
 RUN bun run build
 

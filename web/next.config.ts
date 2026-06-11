@@ -4,6 +4,13 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle (.next/standalone) for the Docker image.
   output: 'standalone',
+  // Skip the TypeScript type-check ONLY inside the Docker image build
+  // (the Dockerfile sets DOCKER_BUILD=1). It keeps peak build memory low on
+  // constrained hosts; type-checking still runs in the normal `bun run build`
+  // and the test CI, so this does not weaken local/PR type safety.
+  typescript: {
+    ignoreBuildErrors: process.env.DOCKER_BUILD === '1',
+  },
   // Enable React strict mode
   reactStrictMode: true,
   turbopack: {
