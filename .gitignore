@@ -30,3 +30,6 @@ web/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Superpowers workflow docs (specs/plans) — local only, not tracked
+docs/superpowers/
