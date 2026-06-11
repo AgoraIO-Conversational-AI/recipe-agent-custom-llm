@@ -2,6 +2,8 @@ import path from 'node:path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server bundle (.next/standalone) for the Docker image.
+  output: 'standalone',
   // Enable React strict mode
   reactStrictMode: true,
   turbopack: {
