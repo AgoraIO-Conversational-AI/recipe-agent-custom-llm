@@ -1,23 +1,20 @@
 """
-Custom LLM Server — Mock Implementation
+Custom LLM endpoint — mock implementation.
 
-This server demonstrates how to implement an OpenAI-compatible Chat Completions
-endpoint that works with Agora Conversational AI Engine.
+An OpenAI-compatible Chat Completions app that Agora cloud calls during a
+conversation. In this recipe it is mounted into the API server at `/llm`
+(see server.py); it can also be run on its own via `python src/llm.py` for
+isolated development.
 
-Key points:
-- Must implement POST /chat/completions
-- Must support streaming responses (Server-Sent Events)
-- Must follow OpenAI Chat Completions response format
-- Agora cloud sends Authorization header with the api_key you configured
+Provider-agnostic by design — do NOT import `agora_agent` here. This is the
+component you replace with your own model (local or remote, RAG, tool calling,
+model routing, etc.). The contract it must keep:
+- POST /chat/completions
+- streaming Server-Sent Events in OpenAI chunk format
+- terminate the stream with "data: [DONE]"
 
-This mock version returns pre-defined responses so you can test the full
-voice pipeline (STT → Custom LLM → TTS) without any external LLM dependency.
-
-Replace the mock logic with your own:
-- Call your own model (local or remote)
-- Add RAG context injection
-- Implement tool calling
-- Route to different models based on content
+Agora cloud sends an `Authorization: Bearer <key>` header. This mock does not
+validate it; a production endpoint should.
 """
 import asyncio
 import json
@@ -28,19 +25,10 @@ import uuid
 from typing import Dict, List, Optional, Union
 
 import uvicorn
-from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-
-# Load environment variables.
-# override=False so an explicitly-exported value (e.g. CUSTOM_LLM_PORT injected by
-# the verify:local:llm harness, or a process manager) takes precedence over a
-# checked-in .env.local. In normal `dev` no port is exported, so .env.local wins.
-_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(_base_dir, ".env.local"), override=False)
-load_dotenv(os.path.join(_base_dir, ".env"), override=False)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
