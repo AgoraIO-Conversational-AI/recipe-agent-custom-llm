@@ -19,7 +19,7 @@ if _SERVER_SRC not in sys.path:
 FAKE_ENV = {
     "AGORA_APP_ID": "0123456789abcdef0123456789abcdef",
     "AGORA_APP_CERTIFICATE": "fedcba9876543210fedcba9876543210",
-    "CUSTOM_LLM_URL": "https://example.ngrok-free.dev/chat/completions",
+    "CUSTOM_LLM_URL": "https://example.ngrok-free.dev/llm/chat/completions",
     "CUSTOM_LLM_API_KEY": "test-key",
     "CUSTOM_LLM_MODEL": "test-model",
 }

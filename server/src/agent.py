@@ -64,7 +64,7 @@ class Agent:
         if not self.custom_llm_url:
             raise ValueError(
                 "CUSTOM_LLM_URL is required (the public chat-completions URL of your "
-                "custom LLM endpoint, e.g. https://<tunnel>/chat/completions)"
+                "custom LLM endpoint, e.g. https://<tunnel>/llm/chat/completions)"
             )
 
         if not self.custom_llm_api_key:
