@@ -25,11 +25,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
           pytest tests -v
-      - name: llm tests
-        working-directory: llm
-        run: |
-          pip install -r requirements.txt -r requirements-dev.txt
-          pytest tests -v
 
   web:
     name: web (bun)

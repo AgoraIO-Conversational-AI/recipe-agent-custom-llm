@@ -1,8 +1,9 @@
 # Architecture — Custom LLM Recipe
 
-Three processes. The browser talks only to Next.js `/api/*`, which rewrites to the
-agent backend. The agent backend owns Agora tokens and agent lifecycle. The custom
-LLM endpoint is a separate service that **Agora cloud** calls directly.
+Two processes. The browser talks only to Next.js `/api/*`, which rewrites to the
+agent backend. The agent backend owns Agora tokens and agent lifecycle, and also
+serves the custom LLM endpoint mounted at `/llm`, which **Agora cloud** calls
+directly.
 
 ## Request flow
 
@@ -20,7 +21,7 @@ Agora ConvoAI Cloud
   │  user speech → Deepgram STT (managed)
   │  POST <CUSTOM_LLM_URL>/chat/completions   (Authorization: Bearer <key>)
   ▼
-Custom LLM endpoint (llm/, :8001, public via tunnel)
+Custom LLM endpoint (mounted at /llm in server/, :8000, public via tunnel)
   │  returns OpenAI SSE
   ▼
 Agora ConvoAI Cloud → MiniMax TTS (managed) → user hears speech
@@ -29,18 +30,22 @@ Agora ConvoAI Cloud → MiniMax TTS (managed) → user hears speech
 
 `POST /api/stopAgent { agentId }` ends the session.
 
-## Why two backends
+## One process, two concerns
 
-`server/` and `llm/` are split because of an **exposure asymmetry**:
+`server/` runs a single process that serves both the token/agent endpoints and,
+mounted at `/llm`, the OpenAI-compatible custom LLM endpoint (`server/src/llm.py`).
 
-- `llm/` must be reachable by **Agora cloud over the public internet** (hence the
-  ngrok tunnel). It is the part you replace with your own model, and it has no
-  Agora dependency.
-- `server/` only needs to be reachable by your web tier. It holds the Agora App
-  Certificate and all token logic.
+The two concerns are kept in separate files with a one-directional dependency
+(`server.py` imports `llm`, never the reverse), and `llm.py` has no `agora_agent`
+import — it is the provider-agnostic part you replace with your own model.
 
-In production the two could be co-deployed, but they are kept separate here to
-make that boundary — and the public-exposure requirement — explicit.
+Merging them onto one public surface is a deliberate trade. The Agora App
+Certificate is only ever used in-memory to mint tokens — it never crosses a wire —
+so co-locating the public `/llm` route with the token endpoints does not expose the
+certificate. It does, however, make the token-minting endpoints (`/get_config`,
+`/startAgent`, `/stopAgent`) publicly reachable. They are unauthenticated in this
+recipe; put auth / rate-limiting in front of them (ingress, gateway, or a proxy)
+before any real deployment.
 
 ## API (agent backend, port 8000)
 

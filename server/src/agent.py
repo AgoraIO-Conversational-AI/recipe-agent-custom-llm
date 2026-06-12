@@ -32,7 +32,7 @@ class Agent:
 
     The key difference from the quickstart is that this uses the OpenAI vendor
     with a custom `base_url` pointing to your own OpenAI-compatible endpoint
-    (the custom_llm_server.py proxy). The Agora cloud will call your proxy
+    (the mounted server/src/llm.py app at /llm). The Agora cloud will call it
     for chat completions instead of calling OpenAI directly.
 
     IMPORTANT: The custom LLM URL must be publicly accessible for the Agora
@@ -51,7 +51,7 @@ class Agent:
         # Custom LLM configuration.
         # CUSTOM_LLM_URL is the FULL OpenAI-compatible chat-completions URL and must be
         # PUBLICLY reachable: Agora cloud (not this backend) calls it. For local dev,
-        # expose the llm/ server on port 8001 via ngrok and paste that URL here.
+        # expose this backend on port 8000 via ngrok and use <tunnel>/llm/chat/completions.
         # There is intentionally no localhost default: a localhost URL would let the
         # agent "start" while its LLM calls silently fail cloud-side.
         self.custom_llm_url = os.getenv("CUSTOM_LLM_URL")
@@ -64,7 +64,7 @@ class Agent:
         if not self.custom_llm_url:
             raise ValueError(
                 "CUSTOM_LLM_URL is required (the public chat-completions URL of your "
-                "custom LLM endpoint, e.g. https://<tunnel>/chat/completions)"
+                "custom LLM endpoint, e.g. https://<tunnel>/llm/chat/completions)"
             )
 
         if not self.custom_llm_api_key:
@@ -104,7 +104,7 @@ class Agent:
         # ============================================================
         # The base quickstart uses a managed `OpenAI(model="gpt-4o-mini")`.
         # This recipe instead points the LLM stage at our own OpenAI-compatible
-        # endpoint (the llm/ server) via the purpose-built `CustomLLM` vendor.
+        # endpoint (the mounted server/src/llm.py app) via the purpose-built `CustomLLM` vendor.
         # CustomLLM stamps `vendor: "custom"` in the wire config and requires
         # both base_url and api_key. Your endpoint can then:
         # - Add custom preprocessing (RAG, context injection)
