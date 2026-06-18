@@ -8,7 +8,7 @@ recipes family, derived from the base `agent-quickstart-python` template.
 
 - **`server/`** — Python FastAPI agent backend (:8000). Owns Agora token
   generation and agent session lifecycle. Uses the `CustomLLM` vendor to point the
-  agent's LLM stage at the custom LLM endpoint. SDK: `agora-agents>=2.0.0`
+  agent's LLM stage at the custom LLM endpoint. SDK: `agora-agents>=2.3.0`
   (`import agora_agent`).
 - **`server/src/llm.py`** — provider-agnostic FastAPI custom LLM endpoint,
   mounted into the API server at `/llm` (so Agora cloud calls
